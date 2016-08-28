@@ -109,6 +109,40 @@ impl Value {
             }
         }
     }
+
+    //
+    //Short cut for a very small value
+    //
+    pub fn zero() -> Value {
+        Value{
+            data: 0
+        }
+    }
+
+    //
+    //Short cut for a very large value
+    //
+    pub fn max() -> Value {
+        Value {
+            data: u64::max_value()
+        }
+    }
+
+    //
+    //Convert to a float 64 (loss of precision will occur)
+    //
+    pub fn to_f64(&self) -> f64 {
+        self.data as f64 / 10000000000f64
+    }
+
+    //
+    //Convert from a float
+    //
+    pub fn from_f64(x: f64) -> Value {
+        Value {
+            data: (x*10000000000f64) as u64
+        }
+    }
 }
 unsafe impl Send for Value {
 
@@ -118,14 +152,17 @@ fn test_value() {
     let dut_str = "5872.75856521";
     let dut_val = Value::new(dut_str).unwrap();
     assert_eq!(dut_val.data, 58727585652100u64);
+    assert_eq!(dut_val.to_f64(), 5872.75856521f64);
 
     let dut_str = "0";
     let dut_val = Value::new(dut_str).unwrap();
     assert_eq!(dut_val.data, 0);
+    assert_eq!(dut_val.to_f64(), 0f64);
 
     let dut_str = "null";
     let dut_val = Value::new(dut_str).unwrap();
     assert_eq!(dut_val.data, 0);
+    assert_eq!(dut_val.to_f64(), 0f64);
 
     let dut_str = "20253.3278928455";
     let dut_val = Value::new(dut_str).unwrap();
@@ -233,6 +270,7 @@ fn test_uuid() {
     assert_eq!( 16, size_of::<UUID>() );
 }
 
+
 //
 //Enum that determines buy/sell
 //
@@ -287,7 +325,6 @@ impl Ord for Order {
         self.id.cmp( &other.id )
     }
 }
-
 
 //
 //This is a high level representation of a transaction
@@ -453,4 +490,150 @@ fn test_packet_reader() {
     let op = MakeOrderBookOp(match_packet).unwrap();
     let dut_op = OrderBookOp::Modify(UUID::new("2d99ff0c-2b5a-4729-be62-7249fb7990e6").unwrap(),Side::new("sell").unwrap(), Value::new("0.17").unwrap());
     assert_eq!(op, dut_op);
+}
+
+
+
+//
+//Build structure to hold order
+//
+use std::collections::BTreeSet;
+pub struct OrderBook {
+    buy: BTreeSet<Order>,
+    sell: BTreeSet<Order>
+}
+impl OrderBook {
+    pub fn new() -> OrderBook {
+        OrderBook {
+            buy: BTreeSet::new(),
+            sell: BTreeSet::new()
+        }
+    }
+    pub fn interact(&mut self, packet: &OrderBookOp ) {
+        match packet {
+            &OrderBookOp::Ignored => { },
+            &OrderBookOp::Error => panic!("Recieved error"),
+            &OrderBookOp::Reset => {
+                self.buy.clear();
+                self.sell.clear();
+            },
+            &OrderBookOp::Open(ref uuid,Side::Buy,ref p, ref s) => {
+                self.buy.insert(Order{ id: uuid.clone(), price: p.clone(), size: s.clone() } );
+            },
+            &OrderBookOp::Open(ref uuid,Side::Sell,ref p, ref s) => {
+                self.sell.insert(Order{ id: uuid.clone(), price: p.clone(), size: s.clone() } );
+            },
+            &OrderBookOp::Done(ref uuid,Side::Buy) => {
+                let temp = Order{ id: uuid.clone(), price: Value::zero(), size: Value::zero() };
+                self.buy.remove( &temp );
+            },
+            &OrderBookOp::Done(ref uuid,Side::Sell) => {
+                let temp = Order{ id: uuid.clone(), price: Value::zero(), size: Value::zero() };
+                self.sell.remove( &temp );
+            },
+            &OrderBookOp::Modify(ref uuid, Side::Buy, ref val) => {
+                let temp = Order{ id: uuid.clone(), price: Value::zero(), size: Value::zero() };
+                //get a copy of the value
+                let mut temp_2 = match self.buy.get( &temp ) {
+                    Option::None => return,
+                    Option::Some(x) => x.clone()
+                };
+                //decrement it's value it's value
+                temp_2.size.data -= val.data;
+                //replace the old value
+                let _ = self.buy.replace(temp_2);
+            },
+            &OrderBookOp::Modify(ref uuid, Side::Sell, ref val) => {
+                let temp = Order{ id: uuid.clone(), price: Value::zero(), size: Value::zero() };
+                //get a copy of the value
+                let mut temp_2 = match self.sell.get( &temp ) {
+                    Option::None => return,
+                    Option::Some(x) => x.clone()
+                };
+                //decrement it's value it's value
+                temp_2.size.data -= val.data;
+                //replace the old value
+                let _ = self.sell.replace(temp_2);
+            }
+        }
+    }
+    pub fn find_min_sell(&self) -> Value {
+        self.sell.iter().fold( Value::max(), |x,y| if x < y.price { x } else { y.price } )
+    }
+    pub fn find_max_sell(&self) -> Value {
+        self.sell.iter().fold( Value::zero(), |x,y| if x > y.price { x } else { y.price } )
+    }
+    pub fn find_min_buy(&self) -> Value {
+        self.buy.iter().fold( Value::max(), |x,y| if x < y.price { x } else { y.price } )
+    }
+    pub fn find_max_buy(&self) -> Value {
+        self.buy.iter().fold( Value::zero(), |x,y| if x > y.price { x } else { y.price } )
+    }
+    pub fn get_buy_vol_at(&self,val: f64) -> f64 {
+        let temp = Value::from_f64(val);
+        self.buy.iter().filter(|x| x.price == temp).map(|x| x.size.to_f64() ).fold( 0f64, |x,y| x+y )
+    }
+    pub fn get_sell_vol_at(&self,val: f64) -> f64 {
+        let temp = Value::from_f64(val);
+        self.sell.iter().filter(|x| x.price == temp).map(|x| x.size.to_f64() ).fold( 0f64, |x,y| x+y )
+    }
+    //max_buy, min_sell, delta,price
+    pub fn spread_value(&self) -> (f64,f64,f64,f64) {
+        let max_buy = self.find_max_buy().to_f64();
+        let min_sell = self.find_min_sell().to_f64();
+        let delta = min_sell - max_buy;
+        let price = (min_sell+max_buy)/2f64;
+        (max_buy,min_sell,delta,price)
+    }
+}
+
+//
+//This is a thread that'll manage order books all by itself
+//
+use std::sync::mpsc::{Receiver,Sender,channel};
+pub fn order_book_thread( input: Receiver<OrderBookOp> ) {
+    //build order book
+    let mut book = OrderBook::new();
+    for item in input.iter() {
+        //execute the order
+        book.interact( &item );
+        //get information
+        let (buy,sell,spread,price) = book.spread_value();
+        println!("Buy: {} Sell: {} Delta: {} Price: {}",buy,sell,spread,price);
+    }
+}
+
+//
+//Reads and external path
+//
+use std::io::prelude::*;
+use std::fs::{File, OpenOptions};
+use std::io::BufReader;
+use std::thread;
+pub fn read_parser( path: &str ) {
+
+    //open fifo from websocket server
+    let mut fifo: File = match OpenOptions::new().read(true).write(false).open(path) {
+        Ok(x) => x,
+        Err(e) => panic!("Err: {:?}", e)
+    };
+    //make the channel
+    let (tx,rx) = channel();
+    //spawn reporting thread
+    thread::spawn(move || {
+        order_book_thread(rx);
+    });
+    //buffer it
+    let mut buff = BufReader::new(fifo);
+    //read lines
+    for line in buff.lines().filter_map(|x| match x {Ok(y) => Some(y), Err(e) => panic!("{:?}",e)} ) {
+        match MakeOrderBookOp(&line) {
+            Option::None => println!("{}", line),
+            Option::Some(OrderBookOp::Ignored) => continue,
+            Option::Some(x) => match tx.send(x) {
+                Ok(_) => continue,
+                Err(e) => panic!("{:?}", e)
+            }
+        };
+    }
 }
