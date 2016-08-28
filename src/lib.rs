@@ -38,7 +38,7 @@ r#".*"type":"match","sequence":.*"taker_order_id":"([a-f\d-]+)","side":"(buy|sel
 
 //match a received order
 pub static ref IGNORE_PACKET: Regex = Regex::new(
-r#"\{"type":"change|received".*}"#
+r#"\{"type":"change|received|heartbeat".*}"#
 ).unwrap();
 
 pub static ref IGNORE_PACKET_2: Regex = Regex::new(
@@ -579,12 +579,16 @@ impl OrderBook {
     }
     //max_buy, min_sell, delta,price
     pub fn spread_value(&self) -> (f64,f64,f64,f64) {
-        let max_buy = self.find_max_buy().to_f64();
-        let min_sell = self.find_min_sell().to_f64();
-        let delta = min_sell - max_buy;
-        let price = (min_sell+max_buy)/2f64;
+        let max_buy = round(self.find_max_buy().to_f64());
+        let min_sell = round(self.find_min_sell().to_f64());
+        let delta = round(min_sell - max_buy);
+        let price = round((min_sell+max_buy)/2f64);
         (max_buy,min_sell,delta,price)
     }
+}
+
+pub fn round(x: f64) -> f64 {
+    ((x*100f64).round())/100f64
 }
 
 //
@@ -599,7 +603,7 @@ pub fn order_book_thread( input: Receiver<OrderBookOp> ) {
         book.interact( &item );
         //get information
         let (buy,sell,spread,price) = book.spread_value();
-        println!("Buy: {} Sell: {} Delta: {} Price: {}",buy,sell,spread,price);
+        println!("Buy: {:.2} Sell: {:.2} Delta: {:.2} Price: {:.2}",buy,sell,spread,price);
     }
 }
 
