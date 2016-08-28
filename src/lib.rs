@@ -99,6 +99,10 @@ fn test_value() {
     let dut_val = Value::new(dut_str).unwrap();
     assert_eq!(dut_val.data,155216044582977);
 
+    let dut_str = "\"15521.6044582977\"";
+    let dut_val = Value::new(dut_str).unwrap();
+    assert_eq!(dut_val.data,155216044582977);
+
     let dut_str = "48.08146";
     let dut_val = Value::new(dut_str).unwrap();
     assert_eq!(dut_val.data,480814600000);
