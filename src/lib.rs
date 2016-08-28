@@ -260,12 +260,34 @@ unsafe impl Send for Side {
 //
 #[derive(Clone)]
 pub struct Order {
-    id: UUID,
-    price: Value,
-    size: Value
+    pub id: UUID,
+    pub price: Value,
+    pub size: Value
 }
 unsafe impl Send for Order {
 }
+impl PartialEq for Order {
+    fn eq(&self,other:&Order) -> bool {
+        self.id == other.id
+    }
+    fn ne(&self,other:&Order) -> bool {
+        self.id != other.id
+    }
+}
+impl Eq for Order {
+
+}
+impl PartialOrd for Order {
+    fn partial_cmp(&self, other: &Order) -> Option<::std::cmp::Ordering> {
+        self.id.partial_cmp( &other.id )
+    }
+}
+impl Ord for Order {
+    fn cmp(&self,other: &Order) -> ::std::cmp::Ordering {
+        self.id.cmp( &other.id )
+    }
+}
+
 
 //
 //This is a high level representation of a transaction
