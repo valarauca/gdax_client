@@ -15,43 +15,43 @@ use std::mem::size_of;
 //Define regex
 //
 lazy_static! {
-static ref CAPTUREVALUE: Regex = Regex::new(
+pub static ref CAPTUREVALUE: Regex = Regex::new(
 r#""*(\d{1,6})\.?(\d{1,12})?"#).unwrap();
 
-static ref CAPTUREUUID: Regex = Regex::new(
+pub static ref CAPTUREUUID: Regex = Regex::new(
 r#"([a-f\d]{8})-([a-f\d]{4})-([a-f\d]{4})-([a-f\d]{4})-([a-f\d]{12})"#).unwrap();
 
 //Open order
-static ref CAPTURE_OPEN_ORDER: Regex = Regex::new(
+pub static ref CAPTURE_OPEN_ORDER: Regex = Regex::new(
 r#".*"type":"open",.*"side":"(buy|sell)","price":(null|"[\d\.]+"),"order_id":"([a-z\d-]+)","remaining_size":(null|"[\d\.]+")"#
 ).unwrap();
 
 //capture a done order
-static ref CAPTURE_DONE_ORDER: Regex = Regex::new(
+pub static ref CAPTURE_DONE_ORDER: Regex = Regex::new(
 r#".*type":"done","order_type":"limit","side":"(buy|sell)".*"order_id":"([a-z\d-]+)""#
 ).unwrap();
 
 //capture a match order
-static ref CAPTURE_MATCH_ORDER: Regex = Regex::new(
+pub static ref CAPTURE_MATCH_ORDER: Regex = Regex::new(
 r#".*"type":"match","sequence":.*"taker_order_id":"([a-f\d-]+)","side":"(buy|sell)","size":(null|"[\d\.]+"),"price":(null|"[\d\.]+"),"#
 ).unwrap();
 
 //match a received order
-static ref IGNORE_PACKET: Regex = Regex::new(
+pub static ref IGNORE_PACKET: Regex = Regex::new(
 r#"\{"type":"change|received".*}"#
 ).unwrap();
 
-static ref IGNORE_PACKET_2: Regex = Regex::new(
+pub static ref IGNORE_PACKET_2: Regex = Regex::new(
 r#"\{"type":"done","order_type":"market".*}"#
 ).unwrap();
 
 //match an error packet
-static ref ERROR_PACKET: Regex = Regex::new(
+pub static ref ERROR_PACKET: Regex = Regex::new(
 r#"\{"type":"closing"\}"#
 ).unwrap();
 
 //matching a reset packet
-static ref RESET_PACKET: Regex = Regex::new(
+pub static ref RESET_PACKET: Regex = Regex::new(
 r#".*"type":"reset".*"#
 ).unwrap();
 }
