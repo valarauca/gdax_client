@@ -219,3 +219,10 @@ pub enum Packet {
     ReceivedLimit(UUID,Value,Value,Side),
 
 }
+
+#[test]
+fn test_read_packet() {
+    let dut_str = r#"{"type":"received","sequence":1417404367,"order_id":"a533e4c6-4e67-4ef1-9548-74a9d0e61ab0","order_type":"market","size":"17.62104","price":null,"side":"sell","funds":"10256.1999250365","product_id":"BTC-USD","time":"2016-08-23T22:33:01.39231Z"}"#;
+
+    
+}
